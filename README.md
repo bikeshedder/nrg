@@ -22,8 +22,15 @@ This project aims to provide...
 - ...a simple yet complete power management solution for delivering the excess
   PV electricity to my heat pump and charging stations.
 
-All that bundled in an application written in Rust that runs on a Raspberry PI
-with a CAN HAT and Relais Board.
+All that bundled in a set of applications written in the Rust programming
+language, running on a Raspberry PI with a CAN HAT and some Relais.
+
+All communication is done via MQTT and the services are written following
+the [Unix philosophy](https://en.wikipedia.org/wiki/Unix_philosophy).
+
+# Installation instructions
+
+There are none yet. This project is still very much work in progress.
 
 # My Hardware
 
