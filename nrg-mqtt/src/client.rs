@@ -1,18 +1,22 @@
 use std::{ops::Deref, sync::Arc};
 
-use dashmap::DashMap;
 use rumqttc::{AsyncClient, EventLoop, MqttOptions, Packet, QoS};
-use tracing::info;
+use tokio::sync::Mutex;
 
-use crate::config::MqttConfig;
+use crate::{config::MqttConfig, topic::Pattern};
 
-type Subscription = dyn Fn(&[u8]) + Sync + Send + 'static;
+struct Subscription {
+    pattern: Pattern,
+    cb: Box<SubscriptionCallback>,
+}
 
-type Subscriptions = DashMap<String, Box<Subscription>>;
+type SubscriptionCallback = dyn Fn(&str, &[u8]) + Sync + Send + 'static;
+
+type Subscriptions = Arc<Mutex<Vec<Subscription>>>;
 
 pub struct MqttClient {
     client: AsyncClient,
-    subscriptions: Arc<Subscriptions>,
+    subscriptions: Subscriptions,
 }
 
 impl MqttClient {
@@ -28,8 +32,7 @@ impl MqttClient {
         options.set_keep_alive(config.keepalive);
         let (client, eventloop) = rumqttc::AsyncClient::new(options, config.capacity);
 
-        let subscriptions = Arc::new(Subscriptions::new());
-
+        let subscriptions = Arc::new(Mutex::new(Vec::new()));
         tokio::spawn(run_eventloop(eventloop, subscriptions.clone()));
 
         Self {
@@ -40,10 +43,14 @@ impl MqttClient {
     pub async fn subscribe(
         &self,
         topic: impl Into<String>,
-        notify: impl Fn(&[u8]) + Sync + Send + 'static,
+        notify: impl Fn(&str, &[u8]) + Sync + Send + 'static,
     ) -> Result<(), rumqttc::ClientError> {
         let topic = topic.into();
-        self.subscriptions.insert(topic.clone(), Box::new(notify));
+        let pattern = Pattern::parse(&topic).unwrap(); // XXX
+        self.subscriptions.lock().await.push(Subscription {
+            pattern,
+            cb: Box::new(notify),
+        });
         self.client.subscribe(topic, QoS::AtLeastOnce).await?;
         Ok(())
     }
@@ -56,15 +63,17 @@ impl Deref for MqttClient {
     }
 }
 
-async fn run_eventloop(mut eventloop: EventLoop, subscriptions: Arc<Subscriptions>) {
+async fn run_eventloop(mut eventloop: EventLoop, subscriptions: Subscriptions) {
     while let Ok(notification) = eventloop.poll().await {
         let rumqttc::Event::Incoming(Packet::Publish(publish)) = &notification else {
             continue;
         };
-        let Some(subscription) = subscriptions.get(&publish.topic) else {
-            info!("Publish packed without a subscription: {}", publish.topic);
-            continue;
-        };
-        subscription(&publish.payload);
+        for subscription in subscriptions.lock().await.iter() {
+            if subscription.pattern.matches(&publish.topic) {
+                (*subscription.cb)(&publish.topic, &publish.payload);
+            }
+        }
+        // XXX
+        // info!("Publish packed without a subscription: {}", publish.topic);
     }
 }

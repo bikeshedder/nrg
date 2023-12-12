@@ -20,6 +20,7 @@ dashmap = "5.5.3"
 num-derive = "0.4.1"
 num-traits = "0.2.17"
 strum = { version = "0.25.0", features = ["derive"] }
+clap = { version = "4.4.11", features = ["derive"] }
 
 [profile.release]
 strip = true

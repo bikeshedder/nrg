@@ -1,5 +1,6 @@
-use std::{fs, sync::Arc};
+use std::{fs, path::PathBuf, sync::Arc};
 
+use clap::Parser;
 use config::Config;
 use nrg_hass::{Device, DeviceClass, StateClass};
 use nrg_mqtt::client::MqttClient;
@@ -17,6 +18,11 @@ mod config;
 mod modbus;
 mod registers;
 
+#[derive(Parser)]
+struct Args {
+    config_file: PathBuf,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = FmtSubscriber::builder()
@@ -25,7 +31,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let data = fs::read("keba-p30.toml").expect("Could not read config.toml");
+    let args = Args::parse();
+
+    let data = fs::read(args.config_file).expect("Could not read config.toml");
     let data = String::from_utf8(data).expect("Config file contains non-utf8 characters");
     let cfg: Config = toml::from_str(&data).expect("Error in config file");
 
@@ -154,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mqtt = mqtt.clone();
             let ctx = ctx.clone();
             let hass_mode = hass_mode.clone();
-            move |data| {
+            move |_, data| {
                 let mqtt = mqtt.clone();
                 let ctx = ctx.clone();
                 let hass_mode = hass_mode.clone();
@@ -205,7 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     mqtt.subscribe(
         hass_charging_current.command_topic.as_ref().unwrap(),
-        |data| {
+        |_, data| {
             println!("set_charging_current: {:?}", data);
         },
     )
