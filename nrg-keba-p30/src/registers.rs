@@ -1,6 +1,7 @@
 //! The registers are defined in the
 //! "P30 Charging Station Modbus TCP Programmers Guide V 1.04"
 //! https://www.keba.com/download/x/dea7ae6b84/kecontactp30modbustcp_pgen.pdf
+#![allow(dead_code)]
 
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
