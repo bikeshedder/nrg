@@ -1,6 +1,10 @@
 use std::fs;
 
-use nrg_hass::{DeviceClass, StateClass, UnitOfMeasurement};
+use nrg_hass::{
+    discovery::announce,
+    models::{device_class::DeviceClass, state_class::StateClass, unit::UnitOfMeasurement},
+    state::publish_state,
+};
 use nrg_mqtt::client::MqttClient;
 use sml_rs::{
     parser::{common::Value, complete},
@@ -36,55 +40,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mqtt = MqttClient::new(&cfg.mqtt);
 
-    let hass_wh = nrg_hass::Sensor {
-        name: format!("{} Verbrauch", cfg.hass.name),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, "wh")),
-        state_topic: format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "wh"),
-        unique_id: Some(format!("{}.{}", cfg.hass.object_id, "wh")),
-        device_class: Some(DeviceClass::Energy),
-        state_class: Some(StateClass::TotalIncreasing),
-        unit_of_measurement: Some(UnitOfMeasurement::WattHours),
-        icon: Some("mdi:transmission-tower-import".into()),
-        ..Default::default()
-    };
+    let hass_wh = nrg_hass::models::sensor::Sensor::builder()
+        .name(format!("{} Verbrauch", cfg.hass.name))
+        .object_id(format!("{}.{}", cfg.hass.object_id, "wh"))
+        .state_topic(format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "wh"))
+        .unique_id(format!("{}.{}", cfg.hass.object_id, "wh"))
+        .device_class(DeviceClass::Energy)
+        .state_class(StateClass::TotalIncreasing)
+        .unit_of_measurement(UnitOfMeasurement::WattHours)
+        .icon("mdi:transmission-tower-import")
+        .build()
+        .unwrap();
 
-    let hass_wh_return = nrg_hass::Sensor {
-        name: format!("{} Einspeisung", cfg.hass.name),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, "wh_return")),
-        state_topic: format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "wh_return"),
-        unique_id: Some(format!("{}.{}", cfg.hass.object_id, "wh_return")),
-        device_class: Some(DeviceClass::Energy),
-        state_class: Some(StateClass::TotalIncreasing),
-        unit_of_measurement: Some(UnitOfMeasurement::WattHours),
-        icon: Some("mdi:transmission-tower-export".into()),
-        ..Default::default()
-    };
+    let hass_wh_return = nrg_hass::models::sensor::Sensor::builder()
+        .name(format!("{} Einspeisung", cfg.hass.name))
+        .object_id(format!("{}.{}", cfg.hass.object_id, "wh_return"))
+        .state_topic(format!(
+            "nrg/energy-meter/{}/{}",
+            cfg.hass.object_id, "wh_return"
+        ))
+        .unique_id(format!("{}.{}", cfg.hass.object_id, "wh_return"))
+        .device_class(DeviceClass::Energy)
+        .state_class(StateClass::TotalIncreasing)
+        .unit_of_measurement(UnitOfMeasurement::WattHours)
+        .icon("mdi:transmission-tower-export")
+        .build()
+        .unwrap();
 
-    let hass_w = nrg_hass::Sensor {
-        name: format!("{} Leistung", cfg.hass.name),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, "w")),
-        state_topic: format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "w"),
-        device_class: Some(nrg_hass::DeviceClass::Energy),
-        unique_id: Some(format!("{}.{}", cfg.hass.object_id, "w")),
-        unit_of_measurement: Some(nrg_hass::UnitOfMeasurement::Watt),
-        icon: Some("mdi:home-lightning-bolt-outline".into()),
-        ..Default::default()
-    };
+    let hass_w = nrg_hass::models::sensor::Sensor::builder()
+        .name(format!("{} Leistung", cfg.hass.name))
+        .object_id(format!("{}.{}", cfg.hass.object_id, "w"))
+        .state_topic(format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "w"))
+        .device_class(DeviceClass::Energy)
+        .unique_id(format!("{}.{}", cfg.hass.object_id, "w"))
+        .unit_of_measurement(UnitOfMeasurement::Watt)
+        .icon("mdi:home-lightning-bolt-outline")
+        .build()
+        .unwrap();
 
-    hass_wh
-        .register(&mqtt, &cfg.hass.discovery_prefix, &cfg.hass.object_id, "wh")
-        .await?;
-    hass_wh_return
-        .register(
-            &mqtt,
-            &cfg.hass.discovery_prefix,
-            &cfg.hass.object_id,
-            "wh_return",
-        )
-        .await?;
-    hass_w
-        .register(&mqtt, &cfg.hass.discovery_prefix, &cfg.hass.object_id, "w")
-        .await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass_wh).await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass_wh_return).await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass_w).await?;
 
     let uart = uart_ir_sensor_data_stream(cfg.serial);
     let mut reader = BufReader::new(uart);
@@ -145,11 +141,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         w.unwrap_or(0)
                     );
 
-                    hass_wh.value(&mqtt, format!("{:.1}", wh.unwrap())).await?;
-                    hass_wh_return
-                        .value(&mqtt, format!("{:.1}", wh_return.unwrap()))
-                        .await?;
-                    hass_w.value(&mqtt, w.unwrap().to_string()).await?;
+                    publish_state(&mqtt, &hass_wh, wh.unwrap()).await.unwrap();
+                    publish_state(&mqtt, &hass_wh_return, wh_return.unwrap())
+                        .await
+                        .unwrap();
+                    publish_state(&mqtt, &hass_w, w.unwrap()).await.unwrap();
                 }
             }
             Err(e) => {

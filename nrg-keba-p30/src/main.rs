@@ -2,7 +2,13 @@ use std::{fs, path::PathBuf, sync::Arc};
 
 use clap::Parser;
 use config::Config;
-use nrg_hass::{Device, DeviceClass, StateClass};
+use nrg_hass::{
+    discovery::announce,
+    models::{
+        device::Device, device_class::DeviceClass, state_class::StateClass, unit::UnitOfMeasurement,
+    },
+    state::publish_state,
+};
 use nrg_mqtt::client::MqttClient;
 use tokio::{sync::Mutex, time::sleep};
 use tokio_modbus::{client::tcp::connect_slave, Slave};
@@ -44,117 +50,93 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = Arc::new(Mutex::new(ctx));
     info!("Connected.");
 
-    let device = Some(Arc::new(Device {
-        configuration_url: Some("http://192.168.178.40/".into()),
-        identifiers: Some(vec![cfg.hass.object_id.clone()]),
-        manufacturer: Some("KEBA".into()),
-        model: Some("P30 X".into()),
-        name: Some(cfg.hass.name.clone()),
-        // sw_version
-        // via_device
-        ..Default::default()
-    }));
+    let device = Arc::new(
+        Device::builder()
+            .configuration_url("http://192.168.178.40/")
+            .identifiers(vec![cfg.hass.object_id.clone()])
+            .manufacturer("KEBA")
+            .model("P30 X")
+            .name(&cfg.hass.name)
+            // sw_version
+            // via_device
+            .build()
+            .unwrap(),
+    );
 
-    let hass_charging_state = nrg_hass::Sensor {
-        device: device.clone(),
-        name: format!("{} Ladezustand", cfg.hass.name),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, CHARGING_STATE.name)),
-        state_topic: format!(
+    let hass_charging_state = nrg_hass::models::sensor::Sensor::builder()
+        .device(device.clone())
+        .name(format!("{} Ladezustand", cfg.hass.name))
+        .object_id(format!("{}.{}", cfg.hass.object_id, CHARGING_STATE.name))
+        .state_topic(format!(
             "nrg/charging_station/{}/{}",
             cfg.hass.object_id, CHARGING_STATE.name
-        ),
-        unique_id: Some(format!("{}.{}", cfg.hass.object_id, CHARGING_STATE.name)),
-        ..Default::default()
-    };
+        ))
+        .unique_id(format!("{}.{}", cfg.hass.object_id, CHARGING_STATE.name))
+        .build()
+        .unwrap();
 
-    hass_charging_state
-        .register(
-            &mqtt,
-            &cfg.hass.discovery_prefix,
-            &cfg.hass.object_id,
-            CHARGING_STATE.name,
-        )
-        .await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass_charging_state).await?;
 
-    let hass_active_power = nrg_hass::Sensor {
-        device: device.clone(),
-        name: format!("{} Leistung", cfg.hass.name),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, ACTIVE_POWER.name)),
-        state_topic: format!(
+    let hass_active_power = nrg_hass::models::sensor::Sensor::builder()
+        .device(device.clone())
+        .name(format!("{} Leistung", cfg.hass.name))
+        .object_id(format!("{}.{}", cfg.hass.object_id, ACTIVE_POWER.name))
+        .state_topic(format!(
             "nrg/charging_station/{}/{}",
             cfg.hass.object_id, ACTIVE_POWER.name
-        ),
-        device_class: Some(nrg_hass::DeviceClass::Energy),
-        unique_id: Some(format!("{}.{}", cfg.hass.object_id, ACTIVE_POWER.name)),
-        unit_of_measurement: Some(nrg_hass::UnitOfMeasurement::Watt),
-        icon: Some("mdi:ev-plug-type2".into()),
-        ..Default::default()
-    };
+        ))
+        .device_class(DeviceClass::Energy)
+        .unique_id(format!("{}.{}", cfg.hass.object_id, ACTIVE_POWER.name))
+        .unit_of_measurement(UnitOfMeasurement::Watt)
+        .icon("mdi:ev-plug-type2")
+        .build()
+        .unwrap();
 
-    hass_active_power
-        .register(
-            &mqtt,
-            &cfg.hass.discovery_prefix,
-            &cfg.hass.object_id,
-            ACTIVE_POWER.name,
-        )
-        .await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass_active_power).await?;
 
-    let hass_total_energy = nrg_hass::Sensor {
-        device: device.clone(),
-        name: format!("{} Gesamtenergie", cfg.hass.name),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, TOTAL_ENERGY.name)),
-        state_topic: format!(
+    let hass_total_energy = nrg_hass::models::sensor::Sensor::builder()
+        .device(device.clone())
+        .name(format!("{} Gesamtenergie", cfg.hass.name))
+        .object_id(format!("{}.{}", cfg.hass.object_id, TOTAL_ENERGY.name))
+        .state_topic(format!(
             "nrg/charging_station/{}/{}",
             cfg.hass.object_id, TOTAL_ENERGY.name
-        ),
-        device_class: Some(nrg_hass::DeviceClass::Energy),
-        state_class: Some(StateClass::TotalIncreasing),
-        unique_id: Some(format!("{}.{}", cfg.hass.object_id, TOTAL_ENERGY.name)),
-        unit_of_measurement: Some(nrg_hass::UnitOfMeasurement::WattHours),
-        icon: Some("mdi:ev-plug-type2".into()),
-        ..Default::default()
-    };
+        ))
+        .device_class(DeviceClass::Energy)
+        .state_class(StateClass::TotalIncreasing)
+        .unique_id(format!("{}.{}", cfg.hass.object_id, TOTAL_ENERGY.name))
+        .unit_of_measurement(UnitOfMeasurement::WattHours)
+        .icon("mdi:ev-plug-type2")
+        .build()
+        .unwrap();
 
-    hass_total_energy
-        .register(
-            &mqtt,
-            &cfg.hass.discovery_prefix,
-            &cfg.hass.object_id,
-            TOTAL_ENERGY.name,
-        )
-        .await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass_total_energy).await?;
 
-    let hass_mode = Arc::new(nrg_hass::select::Select {
-        device: device.clone(),
-        name: Some(format!("{} Mode", cfg.hass.name)),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, "mode")),
-        options: vec![
+    let hass_mode = nrg_hass::models::select::Select::builder()
+        .device(device.clone())
+        .name(format!("{} Mode", cfg.hass.name))
+        .object_id(format!("{}.{}", cfg.hass.object_id, "mode"))
+        .options(vec![
             "enabled".into(),
             "excess_only".into(),
             "excess_high".into(),
             "disabled".into(),
-        ],
-        state_topic: Some(format!(
+        ])
+        .state_topic(format!(
             "nrg/charging_station/{}/{}",
             cfg.hass.object_id, "mode"
-        )),
-        command_template: Some("{{ value }}".into()),
-        command_topic: format!("nrg/charging_station/{}/{}", cfg.hass.object_id, "set_mode"),
-        unique_id: Some(format!("{}.{}", cfg.hass.object_id, "mode")),
-        //value_template: Some("X".into()),
-        ..Default::default()
-    });
+        ))
+        .command_template("{{ value }}")
+        .command_topic(format!(
+            "nrg/charging_station/{}/{}",
+            cfg.hass.object_id, "set_mode"
+        ))
+        .unique_id(format!("{}.{}", cfg.hass.object_id, "mode"))
+        .build()
+        .unwrap();
 
-    hass_mode
-        .register(
-            &mqtt,
-            &cfg.hass.discovery_prefix,
-            &cfg.hass.object_id,
-            "mode",
-        )
-        .await?;
-    hass_mode.value(&mqtt, "disabled").await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass_mode).await?;
+    publish_state(&mqtt, &hass_mode, "disabled").await?;
 
     mqtt.subscribe(
         format!("nrg/charging_station/{}/set_mode", cfg.hass.object_id),
@@ -169,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mode = String::from_utf8_lossy(data).to_string();
                 println!("set_mode: {:?}", mode);
                 tokio::spawn(async move {
-                    hass_mode.value(&mqtt, &mode).await.unwrap();
+                    publish_state(&mqtt, &hass_mode, &mode).await.unwrap();
                     match mode.as_str() {
                         "disabled" => write_register(&ctx, ENABLE_CHARGING_STATION, 0)
                             .await
@@ -185,31 +167,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    let hass_charging_current = Arc::new(nrg_hass::number::Number {
+    let hass_charging_current = nrg_hass::models::number::Number {
         command_topic: Some(format!(
             "nrg/charging_station/{}/set_charging_current",
             cfg.hass.object_id
         )),
-        device: device.clone(),
+        device: Some(device.clone()),
         name: Some("Charging Current".into()),
-        object_id: Some(format!("{}.{}", cfg.hass.object_id, "charging_current")),
+        object_id: format!("{}.{}", cfg.hass.object_id, "charging_current"),
         min: Some(6000.0),  // FIXME 6000
         max: Some(16000.0), // FIXME read from device
-        mode: Some(nrg_hass::number::NumberMode::Box),
+        mode: Some(nrg_hass::models::number::NumberMode::Box),
         device_class: Some(DeviceClass::Power),
         state_topic: Some(hass_active_power.state_topic.clone()),
         step: Some(100.0),
-        unit_of_measurement: Some(nrg_hass::UnitOfMeasurement::Watt),
+        unit_of_measurement: Some(UnitOfMeasurement::Watt),
         ..Default::default()
-    });
-    hass_charging_current
-        .register(
-            &mqtt,
-            &cfg.hass.discovery_prefix,
-            &cfg.hass.object_id,
-            "charging_current",
-        )
-        .await?;
+    };
+
+    announce(
+        &mqtt,
+        &cfg.hass,
+        &cfg.hass.object_id,
+        &hass_charging_current,
+    )
+    .await?;
 
     mqtt.subscribe(
         hass_charging_current.command_topic.as_ref().unwrap(),
@@ -221,19 +203,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let charging_state = read_register(&ctx, CHARGING_STATE).await?;
-        hass_charging_state
-            .value(&mqtt, charging_state.as_ref())
-            .await?;
+        publish_state(&mqtt, &hass_charging_state, charging_state.as_ref()).await?;
 
         let active_power = read_register(&ctx, ACTIVE_POWER).await?;
-        hass_active_power
-            .value(&mqtt, format!("{:.3}", active_power as f64 / 1000.0))
-            .await?;
+        publish_state(&mqtt, &hass_active_power, active_power).await?;
 
         let total_energy = read_register(&ctx, TOTAL_ENERGY).await?;
-        hass_total_energy
-            .value(&mqtt, format!("{:.1}", total_energy as f64 / 10.0))
-            .await?;
+        publish_state(&mqtt, &hass_total_energy, total_energy as f64 / 10.0).await?;
 
         println!(
             "{:.3} W, {:.3} kWh",
