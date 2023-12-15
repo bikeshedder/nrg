@@ -840,7 +840,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrg-waveshare-modbus-rtu-16ch"
+name = "nrg-waveshare-modbus-rtu-relay-16ch"
 version = "0.1.0"
 dependencies = [
  "itertools",
