@@ -1,6 +1,6 @@
-NRG - general purpose energy management system
+# NRG - general purpose energy management system
 
-# Abstract
+## Abstract
 
 I was fed up with...
 
@@ -28,11 +28,11 @@ language, running on a Raspberry PI with a CAN HAT and some Relais.
 All communication is done via MQTT and the services are written following
 the [Unix philosophy](https://en.wikipedia.org/wiki/Unix_philosophy).
 
-# Installation instructions
+## Installation instructions
 
 There are none yet. This project is still very much work in progress.
 
-# My Hardware
+## My Hardware
 
 - Raspberry PI 4 8 GB
 - [Waveshare Isolated RS485 CAN HAT (B)](https://www.amazon.de/dp/B0BKKZG6C4)
