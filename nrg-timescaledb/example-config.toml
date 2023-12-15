@@ -1,0 +1,39 @@
+[postgresql]
+host = "192.168.178.43"
+port = 5432
+user = "nrg"
+password = ""
+dbname = "nrg"
+
+[mqtt]
+addr = "192.168.178.25:1883"
+id = "nrg-timescaledb"
+username = "nrg"
+password = ""
+capacity = 10
+keepalive = { secs = 5, nanos = 0 }
+
+[series.energy_meter_main_wh]
+topic = "nrg/energy-meter/energy_meter_main/wh"
+aggregate = { day = true, hour = true }
+
+[series.energy_meter_main_w]
+topic = "nrg/energy-meter/energy_meter_main/w"
+
+[series.solar_inverter_wh]
+topic = "nrg/solar-inverter/wh"
+
+[series.solar_inverter_w]
+topic = "nrg/solar-inverter/w"
+
+[series.charging_station_right_wh]
+topic = "nrg/charging_station/charging_station_right/total_energy"
+
+[series.charging_station_right_w]
+topic = "nrg/charging_station/charging_station_right/active_power"
+
+[series.charging_station_left_wh]
+topic = "nrg/charging_station/charging_station_right/total_energy"
+
+[series.charging_station_left_w]
+topic = "nrg/charging_station/charging_station_right/active_power"
