@@ -46,6 +46,18 @@ impl Hass {
                 cfg.object_id, CHARGING_STATE.name
             ))
             .unique_id(format!("{}_{}", cfg.object_id, CHARGING_STATE.name))
+            .value_template(
+                r#"{{
+                    {
+                        "StartUp": "Startet",
+                        "NotReady": "Nicht bereit",
+                        "Ready": "Bereit",
+                        "Active": "Aktiv",
+                        "Error": "Fehler",
+                        "Suspended": "Pausiert",
+                    }[value_json]
+                }}"#,
+            )
             .build()
             .unwrap();
 
@@ -106,7 +118,7 @@ impl Hass {
                 cfg.object_id
             ))
             .device(device.clone())
-            .name("Charging Current")
+            .name(format!("{} Ladestrom", cfg.name))
             .object_id(format!("{}_{}", cfg.object_id, "charging_current"))
             .min(6000.0)
             .max(16000.0)

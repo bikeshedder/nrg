@@ -17,8 +17,8 @@ use tracing_subscriber::FmtSubscriber;
 
 use modbus::{read_register, write_register};
 use registers::{
-    ACTIVE_POWER, CHARGING_STATE, ENABLE_CHARGING_STATION, MAX_SUPPORTED_CURRENT,
-    SET_CHARGING_CURRENT, TOTAL_ENERGY,
+    ACTIVE_POWER, CHARGING_STATE, ENABLE_CHARGING_STATION, MAX_CHARGING_CURRENT,
+    MAX_SUPPORTED_CURRENT, SET_CHARGING_CURRENT, TOTAL_ENERGY,
 };
 
 use crate::hass::Hass;
@@ -71,6 +71,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.active_power).await?;
     announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.total_energy).await?;
     announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.enabled).await?;
+    announce(
+        &mqtt,
+        &cfg.hass,
+        &cfg.hass.object_id,
+        &hass.charging_current,
+    )
+    .await?;
 
     let commands = Commands::new(mqtt.clone());
     commands
@@ -88,17 +95,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tokio::spawn(process_commands(commands, hass.clone(), ctx.clone()));
 
-    announce(
-        &mqtt,
-        &cfg.hass,
-        &cfg.hass.object_id,
-        &hass.charging_current,
-    )
-    .await?;
-
     loop {
         let charging_state = read_register(&ctx, CHARGING_STATE).await?;
         publish_state(&mqtt, &hass.charging_state, charging_state.as_ref()).await?;
+
+        // Thn max_charging_current lags behind the value set by set_charging_current
+        // and becomes 0 when the charging is suspended. Therefore this information
+        // should not be used as charging current. A separate sensor value could be
+        // useful though.
+        //let max_charging_current = read_register(&ctx, MAX_CHARGING_CURRENT).await?;
+        //publish_state(&mqtt, &hass.charging_current, max_charging_current).await?;
 
         let active_power = read_register(&ctx, ACTIVE_POWER).await?;
         publish_state(&mqtt, &hass.active_power, active_power).await?;
