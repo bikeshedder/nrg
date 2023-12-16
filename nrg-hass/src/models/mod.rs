@@ -8,4 +8,5 @@ pub mod qos;
 pub mod select;
 pub mod sensor;
 pub mod state_class;
+pub mod switch;
 pub mod unit;

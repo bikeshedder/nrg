@@ -52,6 +52,12 @@ pub struct Number {
     pub value_template: Option<String>,
 }
 
+impl Number {
+    pub fn builder() -> NumberBuilder {
+        NumberBuilder::default()
+    }
+}
+
 impl Discovery for Number {
     const COMPONENT: &'static str = "number";
     fn object_id(&self) -> &str {

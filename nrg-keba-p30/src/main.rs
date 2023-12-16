@@ -3,15 +3,22 @@ use std::{fs, path::PathBuf, sync::Arc};
 use clap::Parser;
 use config::Config;
 use nrg_hass::{discovery::announce, state::publish_state};
-use nrg_mqtt::client::MqttClient;
+use nrg_mqtt::{
+    client::MqttClient,
+    command::{Commands, JsonDecoder},
+};
 use tokio::{sync::Mutex, time::sleep};
-use tokio_modbus::{client::tcp::connect_slave, Slave};
+use tokio_modbus::{
+    client::{tcp::connect_slave, Context},
+    Slave,
+};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use modbus::{read_register, write_register};
 use registers::{
-    ACTIVE_POWER, CHARGING_STATE, ENABLE_CHARGING_STATION, SET_CHARGING_CURRENT, TOTAL_ENERGY,
+    ACTIVE_POWER, CHARGING_STATE, ENABLE_CHARGING_STATION, MAX_SUPPORTED_CURRENT,
+    SET_CHARGING_CURRENT, TOTAL_ENERGY,
 };
 
 use crate::hass::Hass;
@@ -24,6 +31,11 @@ mod registers;
 #[derive(Parser)]
 struct Args {
     config_file: PathBuf,
+}
+
+enum Command {
+    SetEnabled(bool),
+    SetChargingCurrent(u16),
 }
 
 #[tokio::main]
@@ -47,57 +59,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = Arc::new(Mutex::new(ctx));
     info!("Connected.");
 
-    let hass = Hass::new(&cfg.hass);
+    let mut hass = Hass::new(&cfg.hass);
+    // Read max charging current from device
+    let max_supported_current = read_register(&ctx, MAX_SUPPORTED_CURRENT).await?;
+    hass.charging_current.max = Some(max_supported_current.try_into().unwrap());
+    info!("Max charging current = {}", max_supported_current);
+
+    let hass = Arc::new(hass);
 
     announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.charging_state).await?;
     announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.active_power).await?;
     announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.total_energy).await?;
-    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.mode).await?;
+    announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.enabled).await?;
 
-    publish_state(&mqtt, &hass.mode, "disabled").await?;
+    let commands = Commands::new(mqtt.clone());
+    commands
+        .cmd(
+            &hass.enabled.command_topic,
+            JsonDecoder(Command::SetEnabled),
+        )
+        .await?;
+    commands
+        .cmd(
+            hass.charging_current.command_topic.as_ref().unwrap(),
+            JsonDecoder(Command::SetChargingCurrent),
+        )
+        .await?;
 
-    mqtt.subscribe(
-        format!("nrg/charging_station/{}/set_mode", cfg.hass.object_id),
-        {
-            let mqtt = mqtt.clone();
-            let ctx = ctx.clone();
-            let hass_mode = hass.mode.clone();
-            move |_, data| {
-                let mqtt = mqtt.clone();
-                let ctx = ctx.clone();
-                let hass_mode = hass_mode.clone();
-                let mode = String::from_utf8_lossy(data).to_string();
-                println!("set_mode: {:?}", mode);
-                tokio::spawn(async move {
-                    publish_state(&mqtt, &hass_mode, &mode).await.unwrap();
-                    match mode.as_str() {
-                        "disabled" => write_register(&ctx, ENABLE_CHARGING_STATION, 0)
-                            .await
-                            .unwrap(),
-                        "enabled" => write_register(&ctx, ENABLE_CHARGING_STATION, 1)
-                            .await
-                            .unwrap(),
-                        _ => {}
-                    }
-                });
-            }
-        },
-    )
-    .await?;
+    tokio::spawn(process_commands(commands, hass.clone(), ctx.clone()));
 
     announce(
         &mqtt,
         &cfg.hass,
         &cfg.hass.object_id,
         &hass.charging_current,
-    )
-    .await?;
-
-    mqtt.subscribe(
-        hass.charging_current.command_topic.as_ref().unwrap(),
-        |_, data| {
-            println!("set_charging_current: {:?}", data);
-        },
     )
     .await?;
 
@@ -118,5 +113,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         sleep(cfg.modbus.poll_delay).await;
+    }
+}
+
+async fn process_commands(commands: Commands<Command>, hass: Arc<Hass>, ctx: Arc<Mutex<Context>>) {
+    loop {
+        let Some(cmd) = commands.next().await else {
+            break;
+        };
+        match cmd {
+            Command::SetEnabled(enabled) => {
+                publish_state(commands.client(), &hass.enabled, &enabled)
+                    .await
+                    .unwrap();
+                write_register(&ctx, ENABLE_CHARGING_STATION, enabled as u16)
+                    .await
+                    .unwrap()
+            }
+            Command::SetChargingCurrent(charging_current) => {
+                publish_state(commands.client(), &hass.charging_current, &charging_current)
+                    .await
+                    .unwrap();
+                write_register(&ctx, SET_CHARGING_CURRENT, charging_current)
+                    .await
+                    .unwrap();
+            }
+        }
     }
 }
