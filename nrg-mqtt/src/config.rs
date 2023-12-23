@@ -1,9 +1,9 @@
 use std::{net::SocketAddr, time::Duration};
 
 use rumqttc::{AsyncClient, EventLoop, MqttOptions};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MqttConfig {
     pub addr: SocketAddr,
@@ -14,7 +14,7 @@ pub struct MqttConfig {
     pub capacity: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Credentials {
     pub username: String,
