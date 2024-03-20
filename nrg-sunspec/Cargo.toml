@@ -8,12 +8,11 @@ edition = "2021"
 [dependencies]
 nrg-hass = { version = "0.1.0", path = "../nrg-hass" }
 nrg-mqtt = { version = "0.1.0", path = "../nrg-mqtt" }
-rumqttc = "0.23.0"
+rumqttc = "0.24.0"
 serde = { version = "1.0.193", features = ["derive"] }
-#sunspec = "0.2.0"
-sunspec = { path = "/home/bikeshedder/projects/foss/sunspec" }
+sunspec = "0.4.0"
 tokio = { version = "1.33.0", features = ["rt-multi-thread", "macros", "time"] }
-tokio-modbus = "0.9.0"
+tokio-modbus = "0.11.0"
 toml = "0.8.8"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"

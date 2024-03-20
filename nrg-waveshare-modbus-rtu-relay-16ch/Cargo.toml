@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 itertools = "0.12.0"
 tokio = { version = "1.35.0", features = ["macros", "rt-multi-thread", "time"] }
-tokio-modbus = "0.9.0"
+tokio-modbus = "0.11.0"
 tokio-serial = "5.4.4"
