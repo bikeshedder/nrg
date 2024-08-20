@@ -1,5 +1,6 @@
 //! https://www.home-assistant.io/integrations/#search/mqtt
 pub mod availability;
+pub mod binary_sensor;
 pub mod device;
 pub mod device_class;
 pub mod entity_category;
