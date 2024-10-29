@@ -2,5 +2,15 @@
 edition = 2021
 resolver = "2"
 members = [
-    "nrg-*"
+    "nrg-bg-etech-ds100",
+    #"nrg-control",
+    "nrg-core",
+    "nrg-hass",
+    "nrg-keba-p30",
+    #"nrg-keba-p30-rest",
+    "nrg-mqtt",
+    "nrg-sml",
+    "nrg-sunspec",
+    "nrg-timescaledb",
+    "nrg-waveshare-modbus-rtu-relay-16ch",
 ]
