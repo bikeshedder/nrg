@@ -1,4 +1,4 @@
-use std::{io, marker::PhantomData, sync::Arc};
+use std::{io, marker::PhantomData};
 
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -56,7 +56,7 @@ pub enum ReadError {
 }
 
 pub async fn read_register<T: Type>(
-    ctx: &Arc<Mutex<Context>>,
+    ctx: &Mutex<Context>,
     reg: Register<T>,
 ) -> Result<T, ReadError> {
     let data = ctx
@@ -74,7 +74,7 @@ pub enum WriteError {
 }
 
 pub async fn write_register(
-    ctx: &Arc<Mutex<Context>>,
+    ctx: &Mutex<Context>,
     reg: Register<u16>,
     value: u16,
 ) -> Result<(), WriteError> {

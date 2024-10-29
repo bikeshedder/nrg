@@ -1,5 +1,5 @@
 //! The registers are defined in the
-//! "P30 Charging Station Modbus TCP Programmers Guide V 1.04"
+//! "P30 Charging Station Modbus TCP Programmers Guide V 1.06"
 //! https://www.keba.com/download/x/dea7ae6b84/kecontactp30modbustcp_pgen.pdf
 #![allow(dead_code)]
 
@@ -11,7 +11,7 @@ use crate::modbus::{Register, Type};
 
 // Readable
 pub const CHARGING_STATE: Register<ChargingState> = Register::new("charging_state", 1000);
-pub const CABLE_STATE: Register<u32> = Register::new("cable_state", 1004);
+pub const CABLE_STATE: Register<CableState> = Register::new("cable_state", 1004);
 pub const ERROR_CODE: Register<u32> = Register::new("cable_state", 1006);
 pub const CHARGING_CURRENT_PHASE_1: Register<u32> = Register::new("charging_current_phase_1", 1008);
 pub const CHARGING_CURRENT_PHASE_2: Register<u32> = Register::new("charging_current_phase_2", 1010);
@@ -47,7 +47,7 @@ pub const FAILSAFE_TIMEOUT: Register<u16> = Register::new("failsafe_timeout", 50
 pub const FAILSAFE_PERSIST: Register<u16> = Register::new("failsafe_persist", 5020);
 
 /// This register contains the state of the charging station.
-#[derive(Copy, Clone, FromPrimitive, Display, AsRefStr)]
+#[derive(Copy, Clone, FromPrimitive, Display, AsRefStr, PartialEq)]
 #[repr(u32)]
 pub enum ChargingState {
     /// 0: Start-up of the charging station
@@ -72,6 +72,35 @@ impl Type for ChargingState {
     const LEN: u16 = 2;
     fn decode(data: &[u16]) -> Option<Self> {
         u32::decode(data).and_then(ChargingState::from_u32)
+    }
+    fn encode(&self) -> Box<[u16]> {
+        (*self as u32).encode()
+    }
+}
+
+/// This register contains the cable state of the charging station.
+#[derive(Copy, Clone, FromPrimitive, Display, AsRefStr, PartialEq)]
+#[repr(u32)]
+pub enum CableState {
+    /// 0: No cable is plugged
+    NoCable = 0,
+    /// 1: Cable is connected to the charging station (not to the electric vehicle).
+    ChargingStation = 1,
+    /// 3: Cable is connected to the charging station and locked
+    /// (not to the electric vehicle).
+    ChargingStationLocked = 3,
+    /// Cable is connected to the charging station and the electric vehicle
+    /// (not locked).
+    ElecticVehicle = 5,
+    /// Cable is connected to the charging station and the electric vehicle and
+    /// locked (charging.
+    ElectricVehicleLocked = 7,
+}
+
+impl Type for CableState {
+    const LEN: u16 = 2;
+    fn decode(data: &[u16]) -> Option<Self> {
+        u32::decode(data).and_then(CableState::from_u32)
     }
     fn encode(&self) -> Box<[u16]> {
         (*self as u32).encode()

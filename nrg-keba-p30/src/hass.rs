@@ -12,10 +12,11 @@ use nrg_hass::{
     },
 };
 
-use crate::registers::{ACTIVE_POWER, CHARGING_STATE, TOTAL_ENERGY};
+use crate::registers::{ACTIVE_POWER, CABLE_STATE, CHARGING_STATE, TOTAL_ENERGY};
 
 pub struct Hass {
     pub charging_state: Sensor,
+    pub cable_state: Sensor,
     pub active_power: Sensor,
     pub total_energy: Sensor,
     pub enabled: Switch,
@@ -55,6 +56,29 @@ impl Hass {
                         "Active": "Aktiv",
                         "Error": "Fehler",
                         "Suspended": "Pausiert",
+                    }[value_json]
+                }}"#,
+            )
+            .build()
+            .unwrap();
+
+        let cable_state = Sensor::builder()
+            .device(device.clone())
+            .name(format!("{} Kabelzustand", cfg.name))
+            .object_id(format!("{}_{}", cfg.object_id, CABLE_STATE.name))
+            .state_topic(format!(
+                "nrg/charging_station/{}/{}",
+                cfg.object_id, CABLE_STATE.name
+            ))
+            .unique_id(format!("{}_{}", cfg.object_id, CABLE_STATE.name))
+            .value_template(
+                r#"{{
+                    {
+                        "NoCable": "Kein Kabel",
+                        "Wallbox": "Wallbox",
+                        "WallboxLocked": "Wallbox Verriegelt",
+                        "ElectricVehicle": "Fahrzeug",
+                        "ElectricVehicleLocked": "Fahrzeug Verriegelt",
                     }[value_json]
                 }}"#,
             )
@@ -135,6 +159,7 @@ impl Hass {
 
         Self {
             charging_state,
+            cable_state,
             active_power,
             total_energy,
             enabled,
