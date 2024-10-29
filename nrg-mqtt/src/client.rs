@@ -1,9 +1,13 @@
 use std::{ops::Deref, sync::Arc};
 
-use rumqttc::{AsyncClient, EventLoop, Packet, QoS};
+use rumqttc::{AsyncClient, ClientError, EventLoop, Packet, Publish, QoS};
+use thiserror::Error;
 use tokio::sync::Mutex;
 
-use crate::{config::MqttConfig, topic::Pattern};
+use crate::{
+    config::MqttConfig,
+    topic::{Pattern, PatternError},
+};
 
 struct Subscription {
     pattern: Pattern,
@@ -11,7 +15,27 @@ struct Subscription {
 }
 
 pub trait Sender: Send {
-    fn send(&self, topic: &str, data: &[u8]);
+    fn send(&self, publish: &Publish);
+}
+
+pub struct CallbackSubscriber<C: Send + Clone> {
+    pub context: C,
+    pub callback: Box<dyn Fn(C, &Publish) + Send>,
+}
+
+impl<C: Send + Clone> CallbackSubscriber<C> {
+    pub fn new(context: C, callback: impl Fn(C, &Publish) + Send + 'static) -> Self {
+        Self {
+            context,
+            callback: Box::new(callback),
+        }
+    }
+}
+
+impl<C: Send + Clone> Sender for CallbackSubscriber<C> {
+    fn send(&self, publish: &Publish) {
+        (self.callback)(self.context.clone(), publish);
+    }
 }
 
 type Subscriptions = Arc<Mutex<Vec<Subscription>>>;
@@ -33,15 +57,13 @@ impl MqttClient {
             subscriptions,
         }
     }
-    pub async fn subscribe(
+    pub async fn sub(
         &self,
-        topic: impl Into<String>,
+        topic: &str,
         sender: impl Sender + 'static,
-    ) -> Result<(), rumqttc::ClientError> {
-        let topic = topic.into();
-        let pattern = Pattern::parse(&topic).unwrap(); // XXX
+    ) -> Result<(), SubscribeError> {
         self.subscriptions.lock().await.push(Subscription {
-            pattern,
+            pattern: Pattern::parse(topic)?,
             sender: Box::new(sender),
         });
         self.client.subscribe(topic, QoS::AtLeastOnce).await?;
@@ -63,10 +85,18 @@ async fn run_eventloop(mut eventloop: EventLoop, subscriptions: Subscriptions) {
         };
         for subscription in subscriptions.lock().await.iter() {
             if subscription.pattern.matches(&publish.topic) {
-                subscription.sender.send(&publish.topic, &publish.payload);
+                subscription.sender.send(&publish);
             }
         }
         // XXX
         // info!("Publish packed without a subscription: {}", publish.topic);
     }
+}
+
+#[derive(Debug, Error)]
+pub enum SubscribeError {
+    #[error("Client error")]
+    Client(#[from] ClientError),
+    #[error("Parse topic error")]
+    Topic(#[from] PatternError),
 }

@@ -12,7 +12,7 @@ use clap::Parser;
 use config::Config;
 use nrg_hass::{discovery::announce, state::publish_state};
 use nrg_mqtt::{
-    client::MqttClient,
+    client::{CallbackSubscriber, MqttClient},
     command::{Commands, JsonDecoder},
 };
 use tokio::{sync::Mutex, time::sleep};
@@ -113,15 +113,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     mqtt.sub(
-        state.clone(),
         state.hass.enabled.state_topic.as_ref().unwrap(),
-        |state, publish| {
+        CallbackSubscriber::new(state.clone(), |state, publish| {
             if publish.retain {
                 let enabled = publish.payload.as_ref() != b"false";
                 info!("state.enabled = {}", enabled);
                 state.enabled.store(enabled, Ordering::Relaxed);
             }
-        },
+        }),
     )
     .await?;
 
@@ -138,7 +137,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let cable_state = read_register(&state.context, CABLE_STATE).await?;
         publish_state(&mqtt, &state.hass.cable_state, cable_state.as_ref()).await?;
-        println!("cable_state = {}", cable_state);
 
         // The max_charging_current lags behind the value set by set_charging_current
         // and becomes 0 when the charging is suspended. Therefore this information

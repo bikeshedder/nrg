@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use rumqttc::{AsyncClient, ClientError};
+use rumqttc::{AsyncClient, Publish};
 use serde::de::DeserializeOwned;
 use tokio::sync::{mpsc, Mutex};
 use tracing::error;
 
-use crate::client::{MqttClient, Sender};
+use crate::client::{MqttClient, Sender, SubscribeError};
 
 pub struct Commands<T> {
     client: Arc<MqttClient>,
@@ -20,13 +20,16 @@ pub struct Command<T> {
 }
 
 impl<T: Send> Sender for Command<T> {
-    fn send(&self, topic: &str, data: &[u8]) {
-        match self.decoder.decode(data) {
+    fn send(&self, publish: &Publish) {
+        match self.decoder.decode(&publish.payload) {
             Ok(payload) => {
                 let _ = self.tx.send(payload);
             }
             Err(e) => {
-                error!("Unable to decode payload for topic {}: {}", topic, e)
+                error!(
+                    "Unable to decode payload for topic {}: {}",
+                    publish.topic, e
+                )
             }
         }
     }
@@ -45,9 +48,9 @@ impl<T: Send + 'static> Commands<T> {
         &self,
         topic: &str,
         decoder: impl Decoder<T> + 'static,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), SubscribeError> {
         self.client
-            .subscribe(
+            .sub(
                 topic,
                 Command {
                     decoder: Box::new(decoder),
