@@ -14,9 +14,17 @@ async fn main() {
     let stream = SerialStream::open(&builder).unwrap();
     let mut ctx = rtu::attach_slave(stream, Slave(1));
 
-    let rsp = ctx.read_holding_registers(0x4000, 1).await.unwrap();
+    let rsp = ctx
+        .read_holding_registers(0x4000, 1)
+        .await
+        .unwrap()
+        .unwrap();
     println!("Device address: {}", rsp[0]);
-    let rsp = ctx.read_holding_registers(0x8000, 1).await.unwrap();
+    let rsp = ctx
+        .read_holding_registers(0x8000, 1)
+        .await
+        .unwrap()
+        .unwrap();
     let version = (rsp[0] / 100, rsp[0] % 100);
     println!("Version: {}.{}", version.0, version.1);
 

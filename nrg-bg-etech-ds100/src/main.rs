@@ -68,8 +68,8 @@ async fn main() -> Result<()> {
 async fn read_u32(ctx: &mut Context, addr: u16) -> Result<u32> {
     let data: [u16; 2] = ctx
         .read_holding_registers(addr, 2)
-        .await?
+        .await??
         .try_into()
-        .unwrap();
+        .expect("read_holding_registers returned the wrong amount of registers");
     Ok(((data[0] as u32) << 16) + (data[1] as u32))
 }

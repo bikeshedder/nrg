@@ -49,38 +49,34 @@ impl<T: Type> Register<T> {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum ReadError {
-    #[error("I/O error")]
-    IO(#[from] io::Error),
-}
-
 pub async fn read_register<T: Type>(
     ctx: &Mutex<Context>,
     reg: Register<T>,
-) -> Result<T, ReadError> {
+) -> Result<T, ModbusError> {
     let data = ctx
         .lock()
         .await
         .read_holding_registers(reg.addr, T::LEN)
-        .await?;
+        .await??;
     Ok(T::decode(&data).unwrap())
 }
 
 #[derive(Debug, Error)]
-pub enum WriteError {
-    #[error("I/O error")]
-    IO(#[from] io::Error),
+pub enum ModbusError {
+    #[error("Modbus error")]
+    Error(#[from] tokio_modbus::Error),
+    #[error("Modbus exception")]
+    Exception(#[from] tokio_modbus::ExceptionCode),
 }
 
 pub async fn write_register(
     ctx: &Mutex<Context>,
     reg: Register<u16>,
     value: u16,
-) -> Result<(), WriteError> {
+) -> Result<(), ModbusError> {
     ctx.lock()
         .await
         .write_single_register(reg.addr, value)
-        .await?;
+        .await??;
     Ok(())
 }

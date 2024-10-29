@@ -2,7 +2,10 @@ use std::{error::Error, fs, time::Duration};
 
 use nrg_mqtt::client::MqttClient;
 use rumqttc::QoS;
-use sunspec::tokio_modbus::{discover_models, read_model};
+use sunspec::{
+    client::AsyncClient,
+    models::{model1::Model1, model103::Model103},
+};
 use tokio::time::sleep;
 use tokio_modbus::{client::tcp::connect_slave, Slave};
 use tracing::Level;
@@ -24,21 +27,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let data = String::from_utf8(data).expect("Config file contains non-utf8 characters");
     let cfg: Config = toml::from_str(&data).expect("Error in config file");
 
-    let mut ctx = connect_slave(cfg.modbus.addr, Slave(cfg.modbus.slave)).await?;
-
-    let models = discover_models(&mut ctx).await?.models;
-    let m1 = read_model(&mut ctx, &models.m1).await?;
+    let mut client = AsyncClient::new(
+        connect_slave(cfg.modbus.addr, Slave(cfg.modbus.slave)).await?,
+        sunspec::client::Config::default(),
+    )
+    .await?;
+    let m1: Model1 = client.read_model().await?;
 
     println!("Manufacturer: {}", m1.mn);
     println!("Model: {}", m1.md);
     println!("Version: {}", m1.vr.as_deref().unwrap_or("(unspecified)"));
     println!("Serial Number: {}", m1.sn);
-    println!("Supported models: {:?}", models.supported_model_ids());
+    println!(
+        "Supported models: {:?}",
+        client.models.supported_model_ids()
+    );
 
     let mqtt = MqttClient::new(&cfg.mqtt);
 
     loop {
-        let m103 = read_model(&mut ctx, &models.m103).await?;
+        let m103: Model103 = client.read_model().await?;
         let w = m103.w as f32 * 10f32.powf(m103.w_sf.into());
         let wh = m103.wh as f32 * 10f32.powf(m103.wh_sf.into());
 
