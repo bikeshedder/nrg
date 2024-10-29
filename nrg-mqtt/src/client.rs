@@ -18,9 +18,11 @@ pub trait Sender: Send {
     fn send(&self, publish: &Publish);
 }
 
+pub type BoxedCallback<C> = Box<dyn Fn(C, &Publish) + Send>;
+
 pub struct CallbackSubscriber<C: Send + Clone> {
     pub context: C,
-    pub callback: Box<dyn Fn(C, &Publish) + Send>,
+    pub callback: BoxedCallback<C>,
 }
 
 impl<C: Send + Clone> CallbackSubscriber<C> {

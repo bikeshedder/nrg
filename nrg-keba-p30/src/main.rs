@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut hass = Hass::new(&cfg.hass);
     // Read max charging current from device
     let max_supported_current = read_register(&ctx, MAX_SUPPORTED_CURRENT).await?;
-    hass.charging_current.max = Some(max_supported_current.try_into().unwrap());
+    hass.charging_current.max = Some(max_supported_current.into());
     info!("Max charging current = {}", max_supported_current);
 
     announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &hass.charging_state).await?;
