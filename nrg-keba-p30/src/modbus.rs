@@ -1,4 +1,4 @@
-use std::{io, marker::PhantomData};
+use std::marker::PhantomData;
 
 use thiserror::Error;
 use tokio::sync::Mutex;

@@ -8,8 +8,6 @@ use nrg_hass::{
     state::publish_state,
 };
 use nrg_mqtt::client::MqttClient;
-use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use tokio::time::sleep;
 use tokio_modbus::{
     client::{Context, Reader},

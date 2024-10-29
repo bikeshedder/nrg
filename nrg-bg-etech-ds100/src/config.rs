@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, time::Duration};
+use std::time::Duration;
 
 use nrg_hass::config::HomeAssistantConfig;
 use nrg_mqtt::config::MqttConfig;

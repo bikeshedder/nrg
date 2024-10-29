@@ -9,7 +9,6 @@ use super::{
     entity_category::EntityCategory,
     qos::Qos,
     state_class::StateClass,
-    unit::UnitOfMeasurement,
 };
 use derive_builder::Builder;
 use serde::Serialize;
