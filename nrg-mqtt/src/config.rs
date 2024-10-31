@@ -12,6 +12,7 @@ pub struct MqttConfig {
     pub credentials: Option<Credentials>,
     pub keepalive: Duration,
     pub capacity: usize,
+    pub topic_prefix: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
