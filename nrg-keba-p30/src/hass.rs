@@ -75,8 +75,8 @@ impl Hass {
                 r#"{{
                     {
                         "NoCable": "Kein Kabel",
-                        "Wallbox": "Wallbox",
-                        "WallboxLocked": "Wallbox Verriegelt",
+                        "ChargingStation": "Wallbox",
+                        "ChargingStationLocked": "Wallbox Verriegelt",
                         "ElectricVehicle": "Fahrzeug",
                         "ElectricVehicleLocked": "Fahrzeug Verriegelt",
                     }[value_json]
