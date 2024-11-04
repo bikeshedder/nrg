@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MqttConfig {
-    pub addr: SocketAddr,
+    pub host: String,
+    pub port: u16,
     pub client_id: String,
     #[serde(flatten)]
     pub credentials: Option<Credentials>,
@@ -24,11 +25,7 @@ pub struct Credentials {
 
 impl MqttConfig {
     pub fn client(&self) -> (AsyncClient, EventLoop) {
-        let mut options = MqttOptions::new(
-            self.client_id.clone(),
-            self.addr.ip().to_string(),
-            self.addr.port(),
-        );
+        let mut options = MqttOptions::new(self.client_id.clone(), &self.host, self.port);
         if let Some(cred) = &self.credentials {
             options.set_credentials(cred.username.clone(), cred.password.clone());
         }
