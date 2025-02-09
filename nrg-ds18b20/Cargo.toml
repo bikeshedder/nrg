@@ -1,0 +1,14 @@
+[package]
+name = "nrg-ds18b20"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nrg-hass = { path = "../nrg-hass" }
+nrg-mqtt = { path = "../nrg-mqtt" }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_with = { version = "3.12.0", features = ["hex"] }
+toml = "0.8.8"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+tokio = { version = "1.33.0", features = ["fs", "macros", "rt-multi-thread", "time"] }

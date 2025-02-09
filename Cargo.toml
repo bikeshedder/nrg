@@ -5,6 +5,7 @@ members = [
     "nrg-bg-etech-ds100",
     #"nrg-control",
     "nrg-core",
+    "nrg-ds18b20",
     "nrg-hass",
     "nrg-keba-p30",
     #"nrg-keba-p30-rest",
