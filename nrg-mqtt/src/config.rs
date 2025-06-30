@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, time::Duration};
+use std::time::Duration;
 
 use rumqttc::{AsyncClient, EventLoop, MqttOptions};
 use serde::{Deserialize, Serialize};
