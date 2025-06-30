@@ -91,7 +91,7 @@ async fn run_eventloop(mut eventloop: EventLoop, subscriptions: Subscriptions) {
             }
         }
         // XXX
-        // info!("Publish packed without a subscription: {}", publish.topic);
+        // info!("Publish packet without a subscription: {}", publish.topic);
     }
 }
 
