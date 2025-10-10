@@ -11,6 +11,6 @@ nrg-hass = { path = "../nrg-hass" }
 nrg-mqtt = { path = "../nrg-mqtt" }
 serde = { version = "1.0.193", features = ["derive"] }
 tokio = { version = "1.35.0", features = ["macros", "rt-multi-thread", "time"] }
-tokio-modbus = "0.15.0"
+tokio-modbus = "0.16"
 tokio-serial = "5.4.4"
-toml = "0.8.8"
+toml = "0.9"

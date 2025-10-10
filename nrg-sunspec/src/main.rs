@@ -27,12 +27,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let data = String::from_utf8(data).expect("Config file contains non-utf8 characters");
     let cfg: Config = toml::from_str(&data).expect("Error in config file");
 
-    let mut client = AsyncClient::new(
+    let client = AsyncClient::new(
         connect_slave(cfg.modbus.addr, Slave(cfg.modbus.slave)).await?,
         sunspec::client::Config::default(),
-    )
-    .await?;
-    let m1: Model1 = client.read_model().await?;
+    );
+    let device = client.device(0).await?;
+    let m1: Model1 = device.read_model().await?;
 
     println!("Manufacturer: {}", m1.mn);
     println!("Model: {}", m1.md);
@@ -40,13 +40,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Serial Number: {}", m1.sn);
     println!(
         "Supported models: {:?}",
-        client.models.supported_model_ids()
+        device.models.supported_model_ids()
     );
 
     let mqtt = MqttClient::new(&cfg.mqtt);
 
     loop {
-        let m103: Model103 = client.read_model().await?;
+        let m103: Model103 = device.read_model().await?;
         let w = m103.w as f32 * 10f32.powf(m103.w_sf.into());
         let wh = m103.wh as f32 * 10f32.powf(m103.wh_sf.into());
 
