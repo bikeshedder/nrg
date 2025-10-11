@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .name(format!("{} Leistung", cfg.hass.name))
         .object_id(format!("{}.{}", cfg.hass.object_id, "w"))
         .state_topic(format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "w"))
-        .device_class(DeviceClass::Energy)
+        .device_class(DeviceClass::Power)
         .unique_id(format!("{}.{}", cfg.hass.object_id, "w"))
         .unit_of_measurement(UnitOfMeasurement::Watt)
         .icon("mdi:home-lightning-bolt-outline")

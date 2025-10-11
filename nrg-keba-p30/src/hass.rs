@@ -93,7 +93,7 @@ impl Hass {
                 "nrg/charging_station/{}/{}",
                 cfg.object_id, ACTIVE_POWER.name
             ))
-            .device_class(DeviceClass::Energy)
+            .device_class(DeviceClass::Power)
             .unique_id(format!("{}_{}", cfg.object_id, ACTIVE_POWER.name))
             .unit_of_measurement(UnitOfMeasurement::Watt)
             .icon("mdi:ev-plug-type2")
