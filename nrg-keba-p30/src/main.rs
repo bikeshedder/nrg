@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = Mutex::new(ctx);
     info!("Connected.");
 
-    let mut hass = Hass::new(&cfg.hass);
+    let mut hass = Hass::new(&cfg.hass, format!("http://{}/", cfg.modbus.addr.ip()));
     // Read max charging current from device
     let max_supported_current = read_register(&ctx, MAX_SUPPORTED_CURRENT).await?;
     hass.charging_current.max = Some(max_supported_current.into());
@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     commands
         .cmd(
-            hass.charging_current.command_topic.as_ref().unwrap(),
+            &hass.charging_current.command_topic,
             JsonDecoder(Command::SetChargingCurrent),
         )
         .await?;

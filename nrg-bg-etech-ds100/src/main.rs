@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
 
     let hass_wh = nrg_hass::models::sensor::Sensor::builder()
         .name(format!("{} Energie", cfg.hass.name))
-        .object_id(format!("{}_{}", cfg.hass.object_id, "wh"))
+        .default_entity_id(format!("{}_{}", cfg.hass.object_id, "wh"))
         .state_topic(format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "wh"))
         .unique_id(format!("{}_{}", cfg.hass.object_id, "wh"))
         .device_class(DeviceClass::Energy)
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
 
     let hass_w = nrg_hass::models::sensor::Sensor::builder()
         .name(format!("{} Leistung", cfg.hass.name))
-        .object_id(format!("{}_{}", cfg.hass.object_id, "w"))
+        .default_entity_id(format!("{}_{}", cfg.hass.object_id, "w"))
         .state_topic(format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "w"))
         .device_class(DeviceClass::Power)
         .unique_id(format!("{}_{}", cfg.hass.object_id, "w"))

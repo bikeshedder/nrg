@@ -24,10 +24,10 @@ pub struct Hass {
 }
 
 impl Hass {
-    pub fn new(cfg: &HomeAssistantConfig) -> Self {
+    pub fn new(cfg: &HomeAssistantConfig, config_url: String) -> Self {
         let device = Arc::new(
             nrg_hass::models::device::Device::builder()
-                .configuration_url("http://192.168.178.40/")
+                .configuration_url(config_url)
                 .identifiers(vec![cfg.object_id.clone()])
                 .manufacturer("KEBA")
                 .model("P30 X")
@@ -40,8 +40,8 @@ impl Hass {
 
         let charging_state = Sensor::builder()
             .device(device.clone())
+            .default_entity_id(format!("sensor.{}_{}", cfg.object_id, CHARGING_STATE.name))
             .name(format!("{} Ladezustand", cfg.name))
-            .object_id(format!("{}_{}", cfg.object_id, CHARGING_STATE.name))
             .state_topic(format!(
                 "nrg/charging_station/{}/{}",
                 cfg.object_id, CHARGING_STATE.name
@@ -64,8 +64,8 @@ impl Hass {
 
         let cable_state = Sensor::builder()
             .device(device.clone())
+            .default_entity_id(format!("sensor.{}_{}", cfg.object_id, CABLE_STATE.name))
             .name(format!("{} Kabelzustand", cfg.name))
-            .object_id(format!("{}_{}", cfg.object_id, CABLE_STATE.name))
             .state_topic(format!(
                 "nrg/charging_station/{}/{}",
                 cfg.object_id, CABLE_STATE.name
@@ -87,8 +87,8 @@ impl Hass {
 
         let active_power = Sensor::builder()
             .device(device.clone())
+            .default_entity_id(format!("sensor.{}_{}", cfg.object_id, ACTIVE_POWER.name))
             .name(format!("{} Leistung", cfg.name))
-            .object_id(format!("{}_{}", cfg.object_id, ACTIVE_POWER.name))
             .state_topic(format!(
                 "nrg/charging_station/{}/{}",
                 cfg.object_id, ACTIVE_POWER.name
@@ -102,8 +102,8 @@ impl Hass {
 
         let total_energy = Sensor::builder()
             .device(device.clone())
+            .default_entity_id(format!("sensor.{}_{}", cfg.object_id, TOTAL_ENERGY.name))
             .name(format!("{} Gesamtenergie", cfg.name))
-            .object_id(format!("{}_{}", cfg.object_id, TOTAL_ENERGY.name))
             .state_topic(format!(
                 "nrg/charging_station/{}/{}",
                 cfg.object_id, TOTAL_ENERGY.name
@@ -118,8 +118,8 @@ impl Hass {
 
         let enabled = Switch::builder()
             .device(device.clone())
+            .default_entity_id(format!("switch.{}_{}", cfg.object_id, "enabled"))
             .name(format!("{} Aktiv", cfg.name))
-            .object_id(format!("{}_{}", cfg.object_id, "enabled"))
             .state_off("false")
             .state_on("true")
             .state_topic(format!(
@@ -141,9 +141,9 @@ impl Hass {
                 "nrg/charging_station/{}/set_charging_current",
                 cfg.object_id
             ))
+            .default_entity_id(format!("number.{}_{}", cfg.object_id, "charging_current"))
             .device(device.clone())
             .name(format!("{} Ladestrom", cfg.name))
-            .object_id(format!("{}_{}", cfg.object_id, "charging_current"))
             .min(6000.0)
             .max(16000.0)
             .mode(NumberMode::Slider)
@@ -153,6 +153,7 @@ impl Hass {
                 cfg.object_id
             ))
             .step(100.0)
+            .unique_id(format!("{}_{}", cfg.object_id, "charging_current"))
             .unit_of_measurement(UnitOfMeasurement::MilliAmpere)
             .build()
             .unwrap();

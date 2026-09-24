@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 serial: serial.clone(),
                 hass_sensor: Sensor::builder()
                     .name(sensor_config.name.clone())
-                    .object_id(format!("nrg_ds18b20_{serial}"))
+                    .default_entity_id(format!("nrg_ds18b20_{serial}"))
                     .device_class(DeviceClass::Temperature)
                     .state_class(StateClass::Measurement)
                     .state_topic(format!("{}{}", cfg.mqtt.topic_prefix, serial))
@@ -63,13 +63,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect::<Vec<_>>();
 
     for sensor in &sensors {
-        nrg_hass::discovery::announce(
-            &mqtt,
-            &cfg.hass,
-            &sensor.hass_sensor.object_id,
-            &sensor.hass_sensor,
-        )
-        .await?;
+        nrg_hass::discovery::announce(&mqtt, &cfg.hass, &cfg.hass.object_id, &sensor.hass_sensor)
+            .await?;
     }
 
     loop {

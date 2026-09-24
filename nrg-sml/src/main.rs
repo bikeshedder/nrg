@@ -20,6 +20,20 @@ use config::{Config, SerialConfig};
 
 pub mod config;
 
+fn value_to_i64(value: &Value) -> Option<i64> {
+    match value {
+        Value::I8(v) => Some((*v).into()),
+        Value::I16(v) => Some((*v).into()),
+        Value::I32(v) => Some((*v).into()),
+        Value::I64(v) => Some(*v),
+        Value::U8(v) => Some((*v).into()),
+        Value::U16(v) => Some((*v).into()),
+        Value::U32(v) => Some((*v).into()),
+        Value::U64(v) => (*v).try_into().ok(),
+        _ => None,
+    }
+}
+
 pub(crate) fn uart_ir_sensor_data_stream(config: SerialConfig) -> impl AsyncRead {
     let ttys_location = config.device;
     let serial = tokio_serial::new(ttys_location, config.baud);
@@ -42,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let hass_wh = nrg_hass::models::sensor::Sensor::builder()
         .name(format!("{} Verbrauch", cfg.hass.name))
-        .object_id(format!("{}.{}", cfg.hass.object_id, "wh"))
+        .default_entity_id(format!("{}_{}", cfg.hass.object_id, "wh"))
         .state_topic(format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "wh"))
         .unique_id(format!("{}.{}", cfg.hass.object_id, "wh"))
         .device_class(DeviceClass::Energy)
@@ -54,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let hass_wh_return = nrg_hass::models::sensor::Sensor::builder()
         .name(format!("{} Einspeisung", cfg.hass.name))
-        .object_id(format!("{}.{}", cfg.hass.object_id, "wh_return"))
+        .default_entity_id(format!("{}_{}", cfg.hass.object_id, "wh_return"))
         .state_topic(format!(
             "nrg/energy-meter/{}/{}",
             cfg.hass.object_id, "wh_return"
@@ -69,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let hass_w = nrg_hass::models::sensor::Sensor::builder()
         .name(format!("{} Leistung", cfg.hass.name))
-        .object_id(format!("{}.{}", cfg.hass.object_id, "w"))
+        .default_entity_id(format!("{}_{}", cfg.hass.object_id, "w"))
         .state_topic(format!("nrg/energy-meter/{}/{}", cfg.hass.object_id, "w"))
         .device_class(DeviceClass::Power)
         .unique_id(format!("{}.{}", cfg.hass.object_id, "w"))
@@ -105,31 +119,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     for val in &lst.val_list {
                         match val.obj_name[2..2 + 3] {
                             [16, 7, 0] => {
-                                w = Some(match val.value {
-                                    Value::I32(wv) => wv.into(),
-                                    Value::I64(wv) => wv,
-                                    _ => panic!("Unsupported value {:?}", val.value),
-                                });
+                                match value_to_i64(&val.value) {
+                                    Some(wv) => w = Some(wv),
+                                    None => {
+                                        eprintln!(
+                                            "Unsupported power value {:?} for OBIS {:?}",
+                                            val.value, val.obj_name
+                                        );
+                                    }
+                                }
                             }
                             [1, 8, 0] => {
-                                let whv: i64 = match val.value {
-                                    Value::I64(whv) => whv,
-                                    Value::U64(whv) => whv.try_into().unwrap(),
-                                    Value::I32(whv) => whv.into(),
-                                    _ => panic!("Unsupported value {:?}", val.value),
-                                };
-                                wh =
-                                    Some((whv as f64) * 10f64.powi(val.scaler.unwrap_or(0).into()));
+                                match value_to_i64(&val.value) {
+                                    Some(whv) => {
+                                        wh = Some(
+                                            (whv as f64)
+                                                * 10f64.powi(val.scaler.unwrap_or(0).into()),
+                                        );
+                                    }
+                                    None => {
+                                        eprintln!(
+                                            "Unsupported import energy value {:?} for OBIS {:?}",
+                                            val.value, val.obj_name
+                                        );
+                                    }
+                                }
                             }
                             [2, 8, 0] => {
-                                let whv: i64 = match val.value {
-                                    Value::I64(whv) => whv,
-                                    Value::U64(whv) => whv.try_into().unwrap(),
-                                    Value::I32(whv) => whv.into(),
-                                    _ => panic!("Unsupported value {:?}", val.value),
-                                };
-                                wh_return =
-                                    Some((whv as f64) * 10f64.powi(val.scaler.unwrap_or(0).into()));
+                                match value_to_i64(&val.value) {
+                                    Some(whv) => {
+                                        wh_return = Some(
+                                            (whv as f64)
+                                                * 10f64.powi(val.scaler.unwrap_or(0).into()),
+                                        );
+                                    }
+                                    None => {
+                                        eprintln!(
+                                            "Unsupported export energy value {:?} for OBIS {:?}",
+                                            val.value, val.obj_name
+                                        );
+                                    }
+                                }
                             }
                             _ => {}
                         }
@@ -141,11 +171,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         w.unwrap_or(0)
                     );
 
-                    publish_state(&mqtt, &hass_wh, wh.unwrap()).await.unwrap();
-                    publish_state(&mqtt, &hass_wh_return, wh_return.unwrap())
-                        .await
-                        .unwrap();
-                    publish_state(&mqtt, &hass_w, w.unwrap()).await.unwrap();
+                    if let Some(wh) = wh {
+                        publish_state(&mqtt, &hass_wh, wh).await.unwrap();
+                    }
+                    if let Some(wh_return) = wh_return {
+                        publish_state(&mqtt, &hass_wh_return, wh_return)
+                            .await
+                            .unwrap();
+                    }
+                    if let Some(w) = w {
+                        publish_state(&mqtt, &hass_w, w).await.unwrap();
+                    }
                 }
             }
             Err(e) => {
