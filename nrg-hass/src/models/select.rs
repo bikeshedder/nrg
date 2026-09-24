@@ -26,15 +26,26 @@ pub struct Select {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_template: Option<String>,
     pub command_topic: String,
-    // TODO
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_entity_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<Arc<Device>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub enabled_by_default: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entity_category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entity_picture: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub json_attributes_template: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub json_attributes_topic: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    // This field is marked as optional in the docs but since
-    // the field is required for the auto discovery to work it
-    // is marked as required.
-    pub object_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub optimistic: Option<bool>,
     pub options: Vec<String>,
@@ -44,8 +55,10 @@ pub struct Select {
     pub retain: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_topic: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub unique_id: Option<String>,
+    // This field is marked as optional in the docs but since we
+    // use this to construct the state topics it is required by
+    // this implementation.
+    pub unique_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value_template: Option<String>,
 }
@@ -66,8 +79,8 @@ pub struct OptionsItem {
 
 impl Discovery for Select {
     const COMPONENT: &'static str = "select";
-    fn object_id(&self) -> &str {
-        &self.object_id
+    fn unique_id(&self) -> &str {
+        &self.unique_id
     }
 }
 

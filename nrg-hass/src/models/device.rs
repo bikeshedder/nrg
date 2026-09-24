@@ -17,7 +17,11 @@ pub struct Device {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serial_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggested_area: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
